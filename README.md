@@ -1,5 +1,5 @@
 # cse210-student-template
-This is the starter code for students in CSE 210.
+This is the starter code for Michael Afolayan in CSE 210 Winter 2023 semester.
 
 This repository contains the starter code for many different projects. They are arranged as follows:
 
