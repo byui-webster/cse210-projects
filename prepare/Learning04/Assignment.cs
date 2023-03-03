@@ -1,5 +1,3 @@
-using System;
-
 // File: Assignment.cs
 
 public class Assignment
@@ -15,6 +13,6 @@ public class Assignment
 
     public string GetSummary()
     {
-        return "Student name: " + studentName + ", Topic: " + topic;
+        return $"Student name: {studentName}, Topic: {topic}";
     }
 }
