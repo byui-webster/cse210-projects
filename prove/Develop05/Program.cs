@@ -4,15 +4,10 @@ using System.Collections.Generic;
 // Base class for all goals
 public class Goal
 {
-	// Private attributes
+	// Public attributes
 	public string name;
-	public string getName;
-	public int RecordGoal;
-	public int Serialize;
-	public static Goal Deserialize;
 	public int points;
 	public bool completed;
-
 	// Constructor
 	public Goal(string name, int points)
 	{
@@ -32,6 +27,34 @@ public class Goal
 	public virtual string GetDescription()
 	{
 		return $"{name} ({points} points) [{(completed ? "X" : " ")}]";
+	}
+
+	// Deserialize a Goal object from a string
+	public static Goal Deserialize(string data)
+	{
+		string[] fields = data.Split(',');
+		string type = fields[0];
+		string name = fields[1];
+		int points = Int32.Parse(fields[2]);
+		switch (type)
+		{
+			case "SimpleGoal":
+				return new SimpleGoal(name, points);
+			case "EternalGoal":
+				int pointsPerRecording = Int32.Parse(fields[3]);
+				return new EternalGoal(name, pointsPerRecording);
+			case "ChecklistGoal":
+				int pointsPerCompletion = Int32.Parse(fields[3]);
+				int targetCount = Int32.Parse(fields[4]);
+				return new ChecklistGoal(name, pointsPerCompletion, targetCount);
+			case "LargeGoal":
+				int target = Int32.Parse(fields[3]);
+				return new LargeGoal(name, points, target);
+			case "NegativeGoal":
+				return new NegativeGoal(name, points);
+			default:
+				throw new ArgumentException($"Invalid goal type '{type}'");
+		}
 	}
 }
 
@@ -61,206 +84,109 @@ public class EternalGoal : Goal
 		this.pointsPerRecording = pointsPerRecording;
 	}
 
-	// Hide the inherited RecordGoal method with a new implementation
-	public new int RecordGoal()
+	// Hide the inherited MarkCompleted method with a new implementation
+	public int MarkCompleted(int recordings)
 	{
-		int pointsEarned = base.MarkCompleted();
-		pointsEarned += pointsPerRecording;
+		int pointsEarned = pointsPerRecording * recordings;
+		points += pointsEarned;
 		return pointsEarned;
 	}
 
 	// Override GetDescription to show the total points earned so far
 	public override string GetDescription()
 	{
-		return $"{name} ({pointsPerRecording} points per recording, {base.GetDescription()}: {pointsPerRecording * Convert.ToInt32(completed)})";
+		return $"{name} ({points} points earned) [Eternal]";
 	}
 }
 
-// Subclass for checklist goals that must be completed a certain number of times
+// Subclass for goals that require multiple completions
 public class ChecklistGoal : Goal
 {
 	// Private attributes
 	private int pointsPerCompletion;
 	private int targetCount;
-	private int completedCount;
+	private int completionCount;
+	
 	// Constructor
 	public ChecklistGoal(string name, int pointsPerCompletion, int targetCount) : base(name, 0)
 	{
 		this.pointsPerCompletion = pointsPerCompletion;
 		this.targetCount = targetCount;
-		this.completedCount = 0;
+		this.completionCount = 0;
 	}
 
-	// Mark this goal as completed and return the points earned
+	// Override MarkCompleted method to track the number of completions and update points
 	public override int MarkCompleted()
 	{
-		int pointsEarned = base.MarkCompleted();
-		completedCount++;
-		if (completedCount == targetCount)
+		completionCount++;
+		if (completionCount >= targetCount)
 		{
-			pointsEarned += pointsPerCompletion * targetCount;
-		}
-		else
-		{
-			pointsEarned += pointsPerCompletion;
+			completed = true;
 		}
 
-		return pointsEarned;
+		points += pointsPerCompletion;
+		return pointsPerCompletion;
 	}
 
-	// Override GetDescription to show the completion status
+	// Override GetDescription to show the completion progress and target count
 	public override string GetDescription()
 	{
-		return $"{name} ({pointsPerCompletion} points per completion, {base.GetDescription()}: Completed {completedCount}/{targetCount} times)";
+		return $"{name} ({points} points) [{completionCount}/{targetCount}]";
 	}
 }
 
-// Class for tracking the user's goals and score
-public class GoalTracker
+// Subclass for goals that require a large amount of points to complete
+public class LargeGoal : Goal
 {
 	// Private attributes
-	private List<Goal> goals;
-	private int score;
+	private int target;
+	
 	// Constructor
-	public GoalTracker()
+	public LargeGoal(string name, int points, int target) : base(name, points)
 	{
-		goals = new List<Goal>();
-		score = 0;
+		this.target = target;
 	}
 
-	// Add a new goal to the list of goals
-	public void AddGoal(Goal goal)
+	// Override MarkCompleted method to check if the goal is complete
+	public override int MarkCompleted()
 	{
-		goals.Add(goal);
+		if (points >= target)
+		{
+			completed = true;
+		}
+
+		return points;
 	}
 
-	// Mark a goal as completed
-	public class LargeGoal : Goal
+	// Override GetDescription to show the target points and progress
+	public override string GetDescription()
 	{
-		private int progress;
-		private int target;
-		public LargeGoal(string name, int points, int target) : base(name, points)
-		{
-			this.target = target;
-			this.progress = 0;
-		}
+		return $"{name} ({points}/{target} points) [{(completed ? "X" : " ")}]";
+	}
+}
 
-		public void AddProgress(int amount)
-		{
-			this.progress += amount;
-			if (this.progress >= this.target)
-			{
-				this.completed = true;
-				this.points += 500;
-			}
-		}
-
-		public override string GetDescription()
-		{
-			string status = this.completed ? "Completed" : "Incomplete";
-			return $"{this.name}: {status}, Progress: {this.progress}/{this.target}";
-		}
+// Subclass for negative goals that subtract points when completed
+public class NegativeGoal : Goal
+{
+	// Constructor
+	public NegativeGoal(string name, int points) : base(name, -points)
+	{
 	}
 
-	public class NegativeGoal : Goal
+	// Override MarkCompleted method to simply call the parent implementation
+	public override int MarkCompleted()
 	{
-		public NegativeGoal(string name, int points) : base(name, points)
-		{
-			this.points *= -1;
-		}
-
-		public override int MarkCompleted()
-		{
-			this.completed = true;
-			return this.points;
-		}
-
-		public override string GetDescription()
-		{
-			return $"{this.name}: {(this.completed ? "Completed" : "Incomplete")}, {this.points} points";
-		}
+		return base.MarkCompleted();
 	}
+}
 
-	public class GoalTracker1
+// Main program
+public class Program
+{
+	public static void Main()
 	{
-		private List<Goal> goals;
-		private int score;
-		public GoalTracker1()
-		{
-			this.goals = new List<Goal>();
-			this.score = 0;
-		}
-
-		public void AddGoal(Goal goal)
-		{
-			this.goals.Add(goal);
-		}
-
-		public void MarkGoalCompleted(string goalName)
-		{
-			foreach (Goal goal in this.goals)
-			{
-				if (goal.getName == goalName)
-				{
-					this.score += goal.MarkCompleted();
-					return;
-				}
-			}
-		}
-
-		public void RecordGoal(string goalName)
-		{
-			foreach (Goal goal in this.goals)
-			{
-				if (goal.getName == goalName)
-				{
-					this.score += goal.RecordGoal;
-					return;
-				}
-			}
-		}
-
-		public List<string> GetGoalList()
-		{
-			List<string> goalList = new List<string>();
-			foreach (Goal goal in this.goals)
-			{
-				goalList.Add(goal.GetDescription());
-			}
-
-			return goalList;
-		}
-
-		public int GetScore()
-		{
-			return this.score;
-		}
-
-		public void SaveData(string fileName)
-		{
-			using (StreamWriter writer = new StreamWriter(fileName))
-			{
-				writer.WriteLine(this.score);
-				foreach (Goal goal in this.goals)
-				{
-					writer.WriteLine(goal.Serialize);
-				}
-			}
-		}
-
-		public void LoadData(string fileName)
-		{
-			this.goals.Clear();
-			using (StreamReader reader = new StreamReader(fileName))
-			{
-				this.score = int.Parse(reader.ReadLine());
-				string line;
-				while ((line = reader.ReadLine()) != null)
-				{
-					Goal goal = Goal.Deserialize(line);
-					this.goals.Add(goal);
-				}
-			}
-		}
+		string data = "ChecklistGoal,Do laundry,10,5";
+		Goal goal = Goal.Deserialize(data);
+		Console.WriteLine(goal.GetDescription());
 	}
 }
