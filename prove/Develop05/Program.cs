@@ -26,34 +26,59 @@ public class Goal
 	// Get a string description of this goal
 	public virtual string GetDescription()
 	{
-		return $"{name} ({points} points) [{(completed ? "X" : " ")}]";
+		return name + " (" + points + " points) [" + (completed ? "X" : " ") + "]";
 	}
 
 	// Deserialize a Goal object from a string
 	public static Goal Deserialize(string data)
 	{
 		string[] fields = data.Split(',');
+		if (fields.Length < 3)
+		{
+			throw new ArgumentException("Invalid data format");
+		}
+
 		string type = fields[0];
-		string name = fields[1];
-		int points = Int32.Parse(fields[2]);
+		string goalName = fields[1]; // Change local variable name to 'goalName'
+		int points;
+		if (!Int32.TryParse(fields[2], out points))
+		{
+			throw new ArgumentException("Invalid points format");
+		}
+
 		switch (type)
 		{
 			case "SimpleGoal":
-				return new SimpleGoal(name, points);
+				return new SimpleGoal(goalName, points); // Use the updated local variable name
 			case "EternalGoal":
+				if (fields.Length < 4)
+				{
+					throw new ArgumentException("Invalid data format");
+				}
+
 				int pointsPerRecording = Int32.Parse(fields[3]);
-				return new EternalGoal(name, pointsPerRecording);
+				return new EternalGoal(goalName, pointsPerRecording); // Use the updated local variable name
 			case "ChecklistGoal":
+				if (fields.Length < 5)
+				{
+					throw new ArgumentException("Invalid data format");
+				}
+
 				int pointsPerCompletion = Int32.Parse(fields[3]);
 				int targetCount = Int32.Parse(fields[4]);
-				return new ChecklistGoal(name, pointsPerCompletion, targetCount);
+				return new ChecklistGoal(goalName, pointsPerCompletion, targetCount); // Use the updated local variable name
 			case "LargeGoal":
+				if (fields.Length < 4)
+				{
+					throw new ArgumentException("Invalid data format");
+				}
+
 				int target = Int32.Parse(fields[3]);
-				return new LargeGoal(name, points, target);
+				return new LargeGoal(goalName, points, target); // Use the updated local variable name
 			case "NegativeGoal":
-				return new NegativeGoal(name, points);
+				return new NegativeGoal(goalName, points); // Use the updated local variable name
 			default:
-				throw new ArgumentException($"Invalid goal type '{type}'");
+				throw new ArgumentException("Invalid goal type '" + type + "'");
 		}
 	}
 }
@@ -95,7 +120,7 @@ public class EternalGoal : Goal
 	// Override GetDescription to show the total points earned so far
 	public override string GetDescription()
 	{
-		return $"{name} ({points} points earned) [Eternal]";
+		return name + " (" + points + " points earned) [Eternal]";
 	}
 }
 
@@ -106,7 +131,6 @@ public class ChecklistGoal : Goal
 	private int pointsPerCompletion;
 	private int targetCount;
 	private int completionCount;
-	
 	// Constructor
 	public ChecklistGoal(string name, int pointsPerCompletion, int targetCount) : base(name, 0)
 	{
@@ -131,7 +155,7 @@ public class ChecklistGoal : Goal
 	// Override GetDescription to show the completion progress and target count
 	public override string GetDescription()
 	{
-		return $"{name} ({points} points) [{completionCount}/{targetCount}]";
+		return name + " (" + points + " points) [" + completionCount + "/" + targetCount + "]";
 	}
 }
 
@@ -140,7 +164,6 @@ public class LargeGoal : Goal
 {
 	// Private attributes
 	private int target;
-	
 	// Constructor
 	public LargeGoal(string name, int points, int target) : base(name, points)
 	{
@@ -161,7 +184,7 @@ public class LargeGoal : Goal
 	// Override GetDescription to show the target points and progress
 	public override string GetDescription()
 	{
-		return $"{name} ({points}/{target} points) [{(completed ? "X" : " ")}]";
+		return name + " (" + points + "/" + target + " points) [" + (completed ? "X" : " ") + "]";
 	}
 }
 
@@ -188,5 +211,16 @@ public class Program
 		string data = "ChecklistGoal,Do laundry,10,5";
 		Goal goal = Goal.Deserialize(data);
 		Console.WriteLine(goal.GetDescription());
+		try
+		{
+			// Call Deserialize method with the data string
+			Goal newgoal = Goal.Deserialize(data);
+		}
+		catch (ArgumentException ex)
+		{
+			// Handle the ArgumentException
+			Console.WriteLine("Error: " + ex.Message);
+		// You can also perform additional error handling or logging here
+		}
 	}
 }
